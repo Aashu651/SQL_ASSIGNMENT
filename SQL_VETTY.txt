@@ -1,0 +1,94 @@
+QUERY 1
+SELECT 
+    DATE_FORMAT(purchase_time, '%Y-%m') AS month,
+    COUNT(*) AS purchase_count
+FROM transactions
+WHERE refund_time IS NULL
+GROUP BY DATE_FORMAT(purchase_time, '%Y-%m')
+ORDER BY month;
+
+query 2
+SELECT 
+    store_id,
+    COUNT(*) AS order_count
+FROM transactions
+WHERE purchase_time BETWEEN '2020-10-01' AND '2020-10-31 23:59:59'
+GROUP BY store_id
+HAVING COUNT(*) >= 5;
+
+QUERY 3
+SELECT 
+    store_id,
+    MIN(TIMESTAMPDIFF(MINUTE, purchase_time, refund_time)) AS shortest_refund_minutes
+FROM transactions
+WHERE refund_time IS NOT NULL
+GROUP BY store_id;
+
+QUERY 4
+WITH first_order AS (
+    SELECT 
+        store_id,
+        gross_transaction_value,
+        ROW_NUMBER() OVER (PARTITION BY store_id ORDER BY purchase_time) AS rn
+    FROM transactions
+)
+SELECT store_id, gross_transaction_value
+FROM first_order
+WHERE rn = 1;
+
+QUERY 5
+WITH first_purchase AS (
+    SELECT
+        buyer_id,
+        transaction_id,
+        ROW_NUMBER() OVER (PARTITION BY buyer_id ORDER BY purchase_time) AS rn
+    FROM transactions
+)
+SELECT 
+    it.item_name,
+    COUNT(*) AS order_count
+FROM items it
+JOIN first_purchase fp 
+    ON it.item_id = (SELECT item_id FROM transactions WHERE transaction_id = fp.transaction_id)
+WHERE fp.rn = 1
+GROUP BY it.item_name
+ORDER BY order_count DESC
+LIMIT 1;
+
+QUERY 6
+SELECT
+    *,
+    CASE 
+        WHEN refund_time IS NOT NULL 
+            AND TIMESTAMPDIFF(HOUR, purchase_time, refund_time) <= 72
+        THEN 'REFUND_ALLOWED'
+        ELSE 'REFUND_NOT_ALLOWED'
+    END AS refund_flag
+FROM transactions;
+
+QUERY 7
+WITH ranked AS (
+    SELECT
+        transaction_id,
+        buyer_id,
+        purchase_time,
+        ROW_NUMBER() OVER (PARTITION BY buyer_id ORDER BY purchase_time) AS rn
+    FROM transactions
+    WHERE refund_time IS NULL   -- ignoring refunds
+)
+SELECT *
+FROM ranked
+WHERE rn = 2;
+
+QUERY 8
+WITH ordered AS (
+    SELECT 
+        buyer_id,
+        transaction_id,
+        purchase_time,
+        ROW_NUMBER() OVER (PARTITION BY buyer_id ORDER BY purchase_time) AS rn
+    FROM transactions
+)
+SELECT buyer_id, transaction_id, purchase_time
+FROM ordered
+WHERE rn = 2;
