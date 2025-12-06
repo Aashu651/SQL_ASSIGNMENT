@@ -36,6 +36,7 @@ INSERT INTO items (store_id, item_id, item_category, item_name) VALUES
 ('d', 'd2', 'jewelry', 'bracelet'),
 ('b', 'b4', 'earphone', 'airpods');
 
+
 SELECT 
     DATE_FORMAT(purchase_time, '%Y-%m') AS month,
     COUNT(*) AS purchase_count
@@ -43,6 +44,7 @@ FROM transactions
 WHERE refund_time IS NULL
 GROUP BY DATE_FORMAT(purchase_time, '%Y-%m')
 ORDER BY month;
+
 
 SELECT 
     store_id,
@@ -52,12 +54,14 @@ WHERE purchase_time BETWEEN '2020-10-01' AND '2020-10-31 23:59:59'
 GROUP BY store_id
 HAVING COUNT(*) >= 5;
 
+
 SELECT 
     store_id,
     MIN(TIMESTAMPDIFF(MINUTE, purchase_time, refund_time)) AS shortest_refund_minutes
 FROM transactions
 WHERE refund_time IS NOT NULL
 GROUP BY store_id;
+
 
 WITH first_order AS (
     SELECT 
@@ -69,6 +73,7 @@ WITH first_order AS (
 SELECT store_id, gross_transaction_value
 FROM first_order
 WHERE rn = 1;
+
 
 WITH first_purchase AS (
     SELECT
@@ -88,6 +93,7 @@ GROUP BY it.item_name
 ORDER BY order_count DESC
 LIMIT 1;
 
+
 SELECT
     *,
     CASE 
@@ -97,6 +103,7 @@ SELECT
         ELSE 'REFUND_NOT_ALLOWED'
     END AS refund_flag
 FROM transactions;
+
 
 WITH ranked AS (
     SELECT
@@ -110,6 +117,19 @@ WITH ranked AS (
 SELECT *
 FROM ranked
 WHERE rn = 2;
+
+WITH ordered AS (
+    SELECT 
+        buyer_id,
+        transaction_id,
+        purchase_time,
+        ROW_NUMBER() OVER (PARTITION BY buyer_id ORDER BY purchase_time) AS rn
+    FROM transactions
+)
+SELECT buyer_id, transaction_id, purchase_time
+FROM ordered
+WHERE rn = 2;
+
 
 
 
